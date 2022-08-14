@@ -11,7 +11,7 @@ This small Python script, based on Pygame, can be used to solve nonograms by han
 
 When starting the script you get a small GUI with two enabled open buttons, to open a new, empty nonogram or to open an already (partly) solved one. A right-click opens a pull-down menu that shows the most recently opened files
 
-![](\Docs\OpenGUI.png "Open GUI")
+![](https://github.com/MountyRox/nonogram-game/blob/main/Docs/OpenGUI.png "Open GUI")
 
 The file format of a new nonogram is a text file with one line for each row and one line for each column of the nonogram. Row lines start with 'Z' (upper or lower case), column lines with 'S' (upper or lower case) followed by the block lengths. For example, if the first row of the nonogram has two blocks with lengths 3 and 8, the file entry for this row would be is Z 3 8.   
 The file extension of new nonograms is *.nob*, partly solved have *.nos*
