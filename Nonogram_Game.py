@@ -4,6 +4,7 @@ import operator
 import sys
 import os
 import pathlib
+import math
 import pygame as pg
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QMessageBox
 from PySide6.QtGui import *
@@ -48,7 +49,7 @@ class NonogramGame:
             None.
       """
 
-      self.minBlockSize = 20  #: The minimum of one nonogram block in pygame self.screen pixel units
+      self.minBlockSize = 16  #: The minimum of one nonogram block in pygame self.screen pixel units
       self.rectLineWidth = 3  #: The line width of the rectangle framing the nonogram: MUST BE AN ODD VALUE
 
       self.rowBlocks: list    #: 2D list: input values of blocks in one row of the nonogram. Each element is a NonoBlock.ClBlock
@@ -155,6 +156,7 @@ class NonogramGame:
       self.currentFilePath: str  #: The file path of the current game
       self.newRecentFilePath: str  #: A file path entered via Open... which may be the new current file path, if the new filepath is a valid nonogram
 
+
    @staticmethod 
    def ReadNonogramFromFile (fileName):
       """Reads the nonogram from file 
@@ -193,7 +195,7 @@ class NonogramGame:
                   data = line[2:].split("#")
                   # at least one element (data[0]) must be present 
                   if len (data) == 1:
-                     pi = [NonoBlock.ClBlock (int(len)) for len in data[0].split(" ")]
+                     pi = [NonoBlock.ClBlock (int(len)) for len in data[0].strip().split(" ")]
                   elif len (data) >= 4:
                      pi = [NonoBlock.ClBlock (int(len), state = s, mode = m) for len, s, m  in zip (data[0].split(" "), data [1], data [2])]
 
@@ -221,7 +223,7 @@ class NonogramGame:
                   data = line[2:].split("#")
                   # at least one element (data[0]) must be present 
                   if len (data) == 1:
-                     pi = [NonoBlock.ClBlock (int(len)) for len in data[0].split(" ")]
+                     pi = [NonoBlock.ClBlock (int(len)) for len in data[0].strip().split(" ")]
                   elif len (data) >= 3:
                      pi = [NonoBlock.ClBlock (int(len), state = s, mode = m) for len, s, m  in zip (data[0].split(" "), data [1], data [2])]
                   else: 
@@ -231,6 +233,7 @@ class NonogramGame:
 
                else:  # input line does not start with 'Z' or 'S'
                   return False, None, None, None
+
             return True, rdRowBlocks, rdColBlocks, rdProcessedFields
       except:
          return False, None, None, None
@@ -447,6 +450,48 @@ class NonogramGame:
       for pos, blockAttr in self.processedFields.items():
          if blockAttr ['pos'][0] <= 0:
             blockAttr ['pos'] = self.GetNonogramFieldFromRowCol (*pos)
+
+   def CalcPermutations (self, q, k):
+      fc = 1
+      for i in range (q, q+k): fc *= i
+      return int (fc/math.factorial (k))
+
+   def CalculateNumberPermutationsOfNonogram (self, useRows = True):
+      # we take an array holding the permutation result of each row / column
+      permRes = []   
+
+      # wether we want to use the rows or the columns for calculating the permutation we define a dict blocks as a copy of rowBlocks or colBlocks
+      if useRows: 
+         blocks = self.rowBlocks
+         # if we take the rows, ng is the number of columns
+         ng = self.noCols
+      else: 
+         blocks = self.colBlocks
+         # and vice versa
+         ng = self.noRows
+
+      for bl in blocks:  # get the defined blocks for each row/col of the nonogram to be solved
+         k = bl.length
+         q = ng - k + 2
+         for blLen in bl:   # get the length of each block
+            q += -blLen
+
+         permRes.append (self.CalcPermutations (q, k))
+
+      noPossi = 1
+      for i in permRes:
+         noPossi *= i
+      return noPossi
+
+   def PrintPermutationsOfRowsAndCols (self):
+      for row, blocks in enumerate (self.rowBlocks):
+         k = len (blocks)
+         q = len (self.colBlocks) - k + 2   # The length of the rows is the number of cols
+         for block in blocks: # get the length of each block
+            q += -block.length
+
+         print (f'{row+1:>3}. row has {self.CalcPermutations (q, k):>10} permutations')
+
 
    def DrawNonogramBackground (self):
       self.screenBkg.fill(self.WHITE)
@@ -934,6 +979,7 @@ class NonogramGame:
                self.colBlocks = cB
                self.processedFields = pF
                self.currentFilePath = filePath
+               if nAss.DEBUGMODE: self.PrintPermutationsOfRowsAndCols ()
                # we entered a valid nonogram file, which will be stored into the recent file list
                if self.isNewNonogram: recentFileList = self.propertyDict ['RecentNewFiles']
                else: recentFileList = self.propertyDict ['RecentFiles']
