@@ -1,6 +1,10 @@
-from re import X
 from  NonoBlock import ClBlock
 from NonoStepper import dcRowBlocks
+import time
+
+DEBUGMODE=True
+DEBUGMODE=False
+if DEBUGMODE:  import Sec2HumanReadable as s2h
 
 
 def GetOverlappingFields (blocks, rowLen):
@@ -59,7 +63,7 @@ def FillLineWithPresets (blockLine: list, crossIndis: set, filledIndis: set, cou
    commonFilledPos = allPossiblePos.copy ()
    commonCrossPos = allPossiblePos.copy ()
 
-   dcBlocks = dcRowBlocks(blockLine, count)
+   dcBlocks = dcRowBlocks(blockLine, count, crossIndis)
    # when creating the dcRowBlocks, we have all init positions and must check if it is a valid position.
    # It is valid, if all filledIndis is a subset of the current filled position set and
    #  crossIndis is a subset of the current cross position set
@@ -76,7 +80,7 @@ def FillLineWithPresets (blockLine: list, crossIndis: set, filledIndis: set, cou
 
    return commonFilledPos, commonCrossPos
 
-def FillFieldsWithPresets (rowBlocks: list, colBlocks: list, nB: dict, useRows = True):
+def FillFieldsWithPresets (rowBlocks: list, colBlocks: list, procField: dict, useRows = True):
    result = {}
    blocksToUse = rowBlocks if useRows else colBlocks
    count = len (colBlocks) if useRows else len (rowBlocks)
@@ -85,7 +89,7 @@ def FillFieldsWithPresets (rowBlocks: list, colBlocks: list, nB: dict, useRows =
       # Get a set of indices, where a cross and a bock is set
       crossIndis = set ()
       filledIndis = set ()
-      for (col, row), attr in nB.items ():
+      for (col, row), attr in procField.items ():
          i = row if useRows else col
          j = col if useRows else row
          if i != iToTake: continue  # we only get entries in our row (col) we want to analyse. 
@@ -98,6 +102,9 @@ def FillFieldsWithPresets (rowBlocks: list, colBlocks: list, nB: dict, useRows =
          # if attr ['state'] == ClBlock.FILLED: filledIndis.add (j)
          # elif attr ['state'] == ClBlock.CROSS: crossIndis.add (j)
 
+      # if no crosses and no filled blocks are in the current row/col,
+      # we will find no further blocks and crosses and can continue
+      if not crossIndis and not filledIndis: continue  
       commonFilledPos, commonCrossPos = FillLineWithPresets (blocksToUse [iToTake], crossIndis, filledIndis, count)
       # the member of the returned sets are the column (row) position where to fill a cross / block
       # The already known blocks and crosses are also part of the returned sets. These member can be deleted
@@ -114,12 +121,19 @@ def FillFieldsWithPresets (rowBlocks: list, colBlocks: list, nB: dict, useRows =
 
 #ffff00
 def NonogramSolver (rowBlocks: list, colBlocks: list):
+   # TODO:
+   #if DEBUGMODE: 
+   startTime = time.time ()
+   nonoSize = len (rowBlocks) * len (colBlocks)
+
    solvedFields = {}  # corresponds to the processedFields dict in Nonogram_Game.py, without 'pos' and without 'mode'
    autoFillData = FillObviousFields (rowBlocks, colBlocks)
    # the obvious fields are all filled blocks
    for pos in autoFillData:
       solvedFields [pos] =  ClBlock.FILLED
 
+   if DEBUGMODE: 
+      print (f'{s2h.human_time_duration(time.time ()-startTime)} for filling overlapped; {len (solvedFields)} of {nonoSize}') 
    # the nonogram is solved, when the all fields are processed: length of solvedFields == requiredLength
    requiredLength = len (rowBlocks) * len (colBlocks)
    # now we call alternating FillFieldsWithPresets, once for the rows and once for the coulumns
@@ -128,17 +142,22 @@ def NonogramSolver (rowBlocks: list, colBlocks: list):
       # get new processed fields using all rows
       autoFillData = FillFieldsWithPresets (rowBlocks, colBlocks, solvedFields)
       solvedFields.update (autoFillData)
+      if DEBUGMODE: 
+         print (f'{s2h.human_time_duration(time.time ()-startTime)} for filling rows; {len (solvedFields)} of {nonoSize}') 
+
       if len (solvedFields) == requiredLength: break
 
       # now get new processed fields using all columns
       autoFillData = FillFieldsWithPresets (rowBlocks, colBlocks, solvedFields, False)
       solvedFields.update (autoFillData)
+      if DEBUGMODE: 
+         print (f'{s2h.human_time_duration(time.time ()-startTime)} for filling cols; {len (solvedFields)} of {nonoSize}') 
       if len (solvedFields) == requiredLength: break
       # It may happen, that the nonogram connot be solved. This happens, if after a complete loop the length of the
       # solvedFields has not changed. Then we must exit from the loop
       if len (solvedFields) == startLen: break
       startLen = len (solvedFields)
-
+   print (time.time ()-startTime)
    return len (solvedFields) == requiredLength, solvedFields
 
             
@@ -147,6 +166,5 @@ if __name__ == "__main__":
 
    ret, rB, cB, pF = noG.ReadNonogramFromFile ('Nono_Vogel.nos')
 
-   result = FillFieldsWithPresets (rB, cB, pF)
    
    pass

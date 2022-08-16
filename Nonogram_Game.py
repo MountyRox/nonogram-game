@@ -1,4 +1,3 @@
-from ast import Break
 import itertools
 import operator
 import sys
@@ -6,7 +5,7 @@ import os
 import pathlib
 import math
 import pygame as pg
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import *
 import QtDialogs
 import numpy as np
