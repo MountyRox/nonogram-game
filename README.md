@@ -4,6 +4,7 @@ If you want to know more about nonograms, you can find more information on Wikip
 An information about the number of possibilities $P$ to distribute k blocks with the respective length $n_i$ on N fields is given by:
 
 $$P=\frac{(k+q-1)!}{k!(q-1)!}$$
+
 where $q$ is given by: $$q=N-(k-2)-\sum_{i=1}^{k}n_i$$
 
 ## Quick Start
