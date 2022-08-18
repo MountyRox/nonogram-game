@@ -1,5 +1,7 @@
 
 from typing import Union, List
+import math
+
 import NonoBlock
 
 
@@ -74,18 +76,17 @@ class dcRowBlocks:
    def __init__(self, blockList : List[NonoBlock.ClBlock], noFields: int, lockedPos = set()):
       # Create all blocks of row index self.iRow.  All blocks on the left side is the starting configuration
       # Get the preset block values from nonogram input out of rowBlocks
-      self.blockList = blockList
-      """A list of NonoBlock.ClBlock in the line. 
-      Each ClBlock element holds the attribute of the block"""
       self.noFields = noFields 
       """The length of the line""" 
       self.blocksInLine = []
       """A list of dcBlocks in the line"""
       self.posOfAllBlocks = set ()
       """The null based index of all black fields in the line with length noFields"""
+      self.numberPermutations: int
+      """The overall number of permutations to distribute all blocks in the line"""
 
       iPos = 0  # position index of  block in a row
-      for block in self.blockList:
+      for block in blockList:
          #  In init position min, current and max are all the same = iPos
          tmp = dcBlock(iPos, iPos, iPos, block.length)
          self.blocksInLine.append (tmp)
@@ -96,9 +97,22 @@ class dcRowBlocks:
       self.blocksInLine [-1].maxRightPos = self.noFields - block.length
       self.blocksInLine [-1].hasSucc = False
 
-      # Now we set for each block all the allowed positions.
+      # Now we set for each block all the allowed positions considering the positions which are not allowed (lockedPos) .
       self.SetAllowedPositions (lockedPos)
+      self.numberPermutations = self.CalcPermutationsOfRow ()
       
+   def CalcPermutations (self, q, k):
+      fc = 1
+      for i in range (q, q+k): fc *= i
+      return int (fc/math.factorial (k))
+
+   def CalcPermutationsOfRow (self):
+         k = len (self.blocksInLine)
+         q = self.noFields - k + 2  
+         for block in self.blocksInLine: # get the length of each block
+            q += -block.length
+
+         return self.CalcPermutations (q, k)
 
 
    def SetAllowedPositions (self, lockedPos):
@@ -113,6 +127,12 @@ class dcRowBlocks:
          block.RemoveAllowedPositions (lockedPos)
          posMin += block.length + 1
          posMax += block.length + 1
+
+
+   def UpdateAllowedPositions (self, lockedPos):
+      for block in self.blocksInLine:
+         block.RemoveAllowedPositions (lockedPos)
+
 
    def NextStep (self):
       # When doing a step, we try to move the lowest block first

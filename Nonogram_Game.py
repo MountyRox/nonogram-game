@@ -3,12 +3,10 @@ import operator
 import sys
 import os
 import pathlib
-import math
 import pygame as pg
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import *
 import QtDialogs
-import numpy as np
 from enum import Enum
 #from regex import F
 import NonoBlock
@@ -54,7 +52,10 @@ class NonogramGame:
       self.rowBlocks: list    #: 2D list: input values of blocks in one row of the nonogram. Each element is a NonoBlock.ClBlock
       self.colBlocks: list    #: 2D list: input values of blocks in one column of the nonogram. Each element is a NonoBlock.ClBlock
 
-
+      self.nonoAssist: nAss.NonoAssist
+      """An instance of class NonogramAssist.NonoAssist providing functions to get permuatation information of the 
+      nonogram and to solving the nonogram"""
+      
       self.processedFields: dict 
       """
       For each processed field within the nonogram we have an entry in the self.processedFields dictionary
@@ -356,6 +357,14 @@ class NonogramGame:
       self.undoStack = UndoRedo.clUndo ()
       self.undoLengthAfterSave = 0
 
+      # Now we create an instance of the nonogram assistant
+      self.nonoAssist = nAss.NonoAssist (self.rowBlocks, self.colBlocks)
+
+      # The following print will only be excecuted if nAss.DEBUGMODE is true
+      self.nonoAssist.PrintPermutationsOfRowsAndCols()
+
+      #ff00ff
+
    def CreateButtons (self):
 
       def LoadImage (FileName):
@@ -450,47 +459,6 @@ class NonogramGame:
          if blockAttr ['pos'][0] <= 0:
             blockAttr ['pos'] = self.GetNonogramFieldFromRowCol (*pos)
 
-   def CalcPermutations (self, q, k):
-      fc = 1
-      for i in range (q, q+k): fc *= i
-      return int (fc/math.factorial (k))
-
-   def CalculateNumberPermutationsOfNonogram (self, useRows = True):
-      # we take an array holding the permutation result of each row / column
-      permRes = []   
-
-      # wether we want to use the rows or the columns for calculating the permutation we define a dict blocks as a copy of rowBlocks or colBlocks
-      if useRows: 
-         blocks = self.rowBlocks
-         # if we take the rows, ng is the number of columns
-         ng = self.noCols
-      else: 
-         blocks = self.colBlocks
-         # and vice versa
-         ng = self.noRows
-
-      for bl in blocks:  # get the defined blocks for each row/col of the nonogram to be solved
-         k = bl.length
-         q = ng - k + 2
-         for blLen in bl:   # get the length of each block
-            q += -blLen
-
-         permRes.append (self.CalcPermutations (q, k))
-
-      noPossi = 1
-      for i in permRes:
-         noPossi *= i
-      return noPossi
-
-   def PrintPermutationsOfRowsAndCols (self):
-      for row, blocks in enumerate (self.rowBlocks):
-         k = len (blocks)
-         q = len (self.colBlocks) - k + 2   # The length of the rows is the number of cols
-         for block in blocks: # get the length of each block
-            q += -block.length
-
-         print (f'{row+1:>3}. row has {self.CalcPermutations (q, k):>10} permutations')
-
 
    def DrawNonogramBackground (self):
       self.screenBkg.fill(self.WHITE)
@@ -548,7 +516,7 @@ class NonogramGame:
          if blockAttr ['state'] == NonoBlock.ClBlock.UNKNOWN: continue
          col = self.RED if blockAttr ['mode'] == NonoBlock.ClBlock.TRIAL else self.BLACK
          if blockAttr ['state'] == NonoBlock.ClBlock.FILLED: 
-            pg.draw.rect (self.screen, col, (blockAttr ['pos'], (self.pgBlockRes-2, self.pgBlockRes-2)), width = 0, border_radius =-1)
+            pg.draw.rect (self.screen, col, (blockAttr ['pos'], (self.pgBlockRes-0, self.pgBlockRes-0)), width = 0, border_radius =-1)
          elif blockAttr ['state'] == NonoBlock.ClBlock.CROSS: 
             startPos = blockAttr ['pos']
             endPos = tuple(map(operator.add, blockAttr ['pos'], (self.pgBlockRes, self.pgBlockRes)))
@@ -630,7 +598,6 @@ class NonogramGame:
 
       return retCode
 
-   #ff00ff
    def CheckButtonRightClick (self):
       # some menu actions need a restart of the app. For example, if a new game was loaded
       # Restart will return self.enExitCode....
@@ -746,7 +713,7 @@ class NonogramGame:
          if blockAttr ['mode'] == NonoBlock.ClBlock.TRIAL: 
             s, m = (list (blockAttr.values()))[1:]
             undoData.append ([pos, s, m])
-            blockAttr ['state'] = NonoBlock.ClBlock.FILLED
+            blockAttr ['state'] = s
             blockAttr ['mode'] = NonoBlock.ClBlock.NORMAL
       if undoData:
          self.undoStack.Append (UndoRedo.EnUndoAction.RED2BW, undoData, self.processedFields)
@@ -769,19 +736,19 @@ class NonogramGame:
          self.undoStack.Append (UndoRedo.EnUndoAction.AUTOFILLOBV, undoData, self.processedFields)
 
    def AutofillObvious (self):
-      autoFillData = nAss.FillObviousFields (self.rowBlocks, self.colBlocks)
+      autoFillData = self.nonoAssist.FillObviousFields()
       self.CopyAutoFillDataToNonogram (autoFillData)
 
    def AutofillRowWithPresets (self): 
-      autoFillData = nAss.FillFieldsWithPresets (self.rowBlocks, self.colBlocks, self.processedFields)
+      autoFillData = self.nonoAssist.FillFieldsWithPresets(self.processedFields)
       self.CopyAutoFillDataToNonogram (autoFillData)
 
    def AutofillColWithPresets (self):
-      autoFillData = nAss.FillFieldsWithPresets (self.rowBlocks, self.colBlocks, self.processedFields, False)
+      autoFillData = self.nonoAssist.FillFieldsWithPresets (self.processedFields, False)
       self.CopyAutoFillDataToNonogram (autoFillData)
 
    def AutoSolve (self):
-      isSolved, autoFillData = nAss.NonogramSolver (self.rowBlocks, self.colBlocks)
+      isSolved, autoFillData = self.nonoAssist.NonogramSolver ()
       if autoFillData:  
          if not isSolved: # seems to be only party solved
             QtDialogs.MessageBox (*self.localMsgText ['PartlySolutionOnly'])
@@ -968,7 +935,7 @@ class NonogramGame:
          self.isNewNonogram = True
 
       if filePath:
-         if os.path.exists (filePath):
+         if os.path.exists (filePath):  #ff00ff
             success, rB, cB, pF =  self.ReadNonogramFromFile(filePath)
             if not success:
                QtDialogs.MessageBox (*self.localMsgText ['NoValidNonoFile'])
@@ -978,7 +945,6 @@ class NonogramGame:
                self.colBlocks = cB
                self.processedFields = pF
                self.currentFilePath = filePath
-               if nAss.DEBUGMODE: self.PrintPermutationsOfRowsAndCols ()
                # we entered a valid nonogram file, which will be stored into the recent file list
                if self.isNewNonogram: recentFileList = self.propertyDict ['RecentNewFiles']
                else: recentFileList = self.propertyDict ['RecentFiles']
