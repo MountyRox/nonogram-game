@@ -6,8 +6,12 @@ import math
 
 class NonoAssist:
    DEBUGMODE=True
-   DEBUGMODE=False
+   #DEBUGMODE=False
    if DEBUGMODE:  import Sec2HumanReadable as s2h
+
+   PERM_START_THRESHOLD = 0x1000
+   MAX_PERM_START_THRESHOLD = 0x1_000_000
+   THRESH_MULT = 8
 
    def __init__(self, rowBlocks: list,  colBlocks: list):
       self.rowBlocks = rowBlocks
@@ -113,50 +117,53 @@ class NonoAssist:
 
 
 
-   def FillFieldsWithPresets (self, procField: dict, useRows = True):
+   def FillFieldsWithPresets (self, procField: dict, useRows = True, *, threshold = None):
       result = {}
       # wether we want to use the rows or the columns for calculating the permutation we define a 
       lineStepper = self.stepperRows if useRows else self.stepperCols 
+      if not threshold: threshold = self.PERM_START_THRESHOLD
+      while True:
+         for iToTake, stepper in enumerate (lineStepper):
+            # Get a set of indices, where a cross and a bock is set, for the line to be under investigation
+            crossIndis = set ()
+            filledIndis = set ()
+            for (col, row), attr in procField.items ():
+               i = row if useRows else col
+               j = col if useRows else row
+               if i != iToTake: continue  # we only get entries in our row (col) we want to analyse. 
+               # nb can be a dict of dict, or just a dict of state values:
+               if  isinstance (attr, dict): state = attr ['state']
+               else: state = attr
+               # the column j (row j) is the index of the row i (col i) block array
+               if state == ClBlock.FILLED: filledIndis.add (j)
+               elif state == ClBlock.CROSS: crossIndis.add (j)
+               # if attr ['state'] == ClBlock.FILLED: filledIndis.add (j)
+               # elif attr ['state'] == ClBlock.CROSS: crossIndis.add (j)
 
-      for iToTake, stepper in enumerate (lineStepper):
-         # Get a set of indices, where a cross and a bock is set, for the line to be under investigation
-         crossIndis = set ()
-         filledIndis = set ()
-         for (col, row), attr in procField.items ():
-            i = row if useRows else col
-            j = col if useRows else row
-            if i != iToTake: continue  # we only get entries in our row (col) we want to analyse. 
-            # nb can be a dict of dict, or just a dict of state values:
-            if  isinstance (attr, dict): state = attr ['state']
-            else: state = attr
-            # the column j (row j) is the index of the row i (col i) block array
-            if state == ClBlock.FILLED: filledIndis.add (j)
-            elif state == ClBlock.CROSS: crossIndis.add (j)
-            # if attr ['state'] == ClBlock.FILLED: filledIndis.add (j)
-            # elif attr ['state'] == ClBlock.CROSS: crossIndis.add (j)
+            # if no crosses and no filled blocks are in the current row/col,
+            # we will find no further blocks and crosses and can continue
+            if not crossIndis and not filledIndis: continue  
+            stepper.UpdateAllowedPositions (crossIndis)
+            if len (crossIndis) == stepper.reqNoCrossPerLine and len (filledIndis) == len (stepper.blocksInLine): continue
+            if stepper.EstimateReducedPermutations (crossIndis, filledIndis) > threshold: continue
+            commonFilledPos, commonCrossPos = self.FillLineWithPresets (stepper, crossIndis, filledIndis)
+            # the member of the returned sets are the column (row) position where to fill a cross / block
+            # The already known blocks and crosses are also part of the returned sets. These member can be deleted
+            for i in (commonFilledPos - filledIndis): 
+               pos = (i, iToTake) if useRows else (iToTake, i)
+               result [pos] = ClBlock.FILLED
+            for i in (commonCrossPos - crossIndis): 
+               pos = (i, iToTake) if useRows else (iToTake, i)
+               result [pos] = ClBlock.CROSS
 
-         # if no crosses and no filled blocks are in the current row/col,
-         # we will find no further blocks and crosses and can continue
-         if not crossIndis and not filledIndis: continue  
-         stepper.UpdateAllowedPositions (crossIndis)
-         commonFilledPos, commonCrossPos = self.FillLineWithPresets (stepper, crossIndis, filledIndis)
-         # the member of the returned sets are the column (row) position where to fill a cross / block
-         # The already known blocks and crosses are also part of the returned sets. These member can be deleted
-         for i in (commonFilledPos - filledIndis): 
-            pos = (i, iToTake) if useRows else (iToTake, i)
-            result [pos] = ClBlock.FILLED
-         for i in (commonCrossPos - crossIndis): 
-            pos = (i, iToTake) if useRows else (iToTake, i)
-            result [pos] = ClBlock.CROSS
+         if len (result) > 0 or threshold >= self.MAX_PERM_START_THRESHOLD: break
+         else: threshold *= self.THRESH_MULT
+      return result, threshold
 
-         pass
-
-      return result
-
-   #ffff00
    def NonogramSolver (self):
       startTime = time.time ()
       nonoSize = len (self.rowBlocks) * len (self.colBlocks)
+      rowThreshold = colThreshold = self.PERM_START_THRESHOLD
 
       solvedFields = {}  # corresponds to the processedFields dict in Nonogram_Game.py, without 'pos' and without 'mode'
       autoFillData = self.FillObviousFields ()
@@ -172,23 +179,67 @@ class NonoAssist:
       startLen = len (solvedFields)
       while True:
          # get new processed fields using all rows
-         autoFillData = self.FillFieldsWithPresets (solvedFields)
+         autoFillData, rowThreshold = self.FillFieldsWithPresets (solvedFields, threshold=rowThreshold)
          solvedFields.update (autoFillData)
          if self.DEBUGMODE: 
-            print (f'{self.s2h.human_time_duration(time.time ()-startTime)} for filling rows; {len (solvedFields)} of {nonoSize}') 
+            print (f'{self.s2h.human_time_duration(time.time ()-startTime)} for filling rows; {len (solvedFields)} of {nonoSize}; Threshold: {rowThreshold:>7}') 
 
          if len (solvedFields) == requiredLength: break
 
          # now get new processed fields using all columns
-         autoFillData = self.FillFieldsWithPresets (solvedFields, False)
+         autoFillData, colThreshold  = self.FillFieldsWithPresets (solvedFields, False, threshold=colThreshold)
          solvedFields.update (autoFillData)
          if self.DEBUGMODE: 
-            print (f'{self.s2h.human_time_duration(time.time ()-startTime)} for filling cols; {len (solvedFields)} of {nonoSize}') 
+            print (f'{self.s2h.human_time_duration(time.time ()-startTime)} for filling cols; {len (solvedFields)} of {nonoSize}; Threshold: {colThreshold:>7}') 
          if len (solvedFields) == requiredLength: break
          # It may happen, that the nonogram connot be solved. This happens, if after a complete loop the length of the
          # solvedFields has not changed. Then we must exit from the loop
          if len (solvedFields) == startLen: break
          startLen = len (solvedFields)
+         yield (solvedFields == requiredLength), solvedFields
+
+      print (time.time ()-startTime)
+      yield len (solvedFields) == requiredLength, solvedFields
+
+   def Old_NonogramSolver (self):
+      startTime = time.time ()
+      nonoSize = len (self.rowBlocks) * len (self.colBlocks)
+      rowThreshold = colThreshold = self.PERM_START_THRESHOLD
+
+      solvedFields = {}  # corresponds to the processedFields dict in Nonogram_Game.py, without 'pos' and without 'mode'
+      autoFillData = self.FillObviousFields ()
+      # the obvious fields are all filled blocks
+      for pos in autoFillData:
+         solvedFields [pos] =  ClBlock.FILLED
+
+      if self.DEBUGMODE: 
+         print (f'{self.s2h.human_time_duration(time.time ()-startTime)} for filling overlapped; {len (solvedFields)} of {nonoSize}') 
+      # the nonogram is solved, when the all fields are processed: length of solvedFields == requiredLength
+      requiredLength = len (self.rowBlocks) * len (self.colBlocks)
+      # now we call alternating FillFieldsWithPresets, once for the rows and once for the coulumns
+      startLen = len (solvedFields)
+      while True:
+         # get new processed fields using all rows
+         autoFillData, rowThreshold = self.FillFieldsWithPresets (solvedFields, threshold=rowThreshold)
+         solvedFields.update (autoFillData)
+         if self.DEBUGMODE: 
+            print (f'{self.s2h.human_time_duration(time.time ()-startTime)}\
+                for filling rows; {len (solvedFields)} of {nonoSize}; Threshold: {rowThreshold:>7}') 
+
+         if len (solvedFields) == requiredLength: break
+
+         # now get new processed fields using all columns
+         autoFillData, colThreshold  = self.FillFieldsWithPresets (solvedFields, False, threshold=colThreshold)
+         solvedFields.update (autoFillData)
+         if self.DEBUGMODE: 
+            print (f'{self.s2h.human_time_duration(time.time ()-startTime)}\
+                for filling cols; {len (solvedFields)} of {nonoSize}; Threshold: {colThreshold:>7}') 
+         if len (solvedFields) == requiredLength: break
+         # It may happen, that the nonogram connot be solved. This happens, if after a complete loop the length of the
+         # solvedFields has not changed. Then we must exit from the loop
+         if len (solvedFields) == startLen: break
+         startLen = len (solvedFields)
+
       print (time.time ()-startTime)
       return len (solvedFields) == requiredLength, solvedFields
 

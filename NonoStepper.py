@@ -24,10 +24,10 @@ class dcBlock:
       self.allowedPos = set ()
       """ All allowed positions of block (regarding first blockelement) within the complete line
       """
-      # A set of position indices of the blocks
       self.posSet = set ([i for i in range (self.curPos, self.curPos+self.length)])
+      """A set of position indices of the blocks"""
 
-   def SetAllAllowedPositions (self, allowedPos = set(), *, posMin = 0, posMax = 1):
+   def SetAllowedPositionsOfBlock (self, allowedPos = set(), *, posMin = 0, posMax = 1):
       if allowedPos: self.allowedPos = allowedPos
       else: self.allowedPos = {*range (posMin, posMax+1+self.length)}
 
@@ -81,9 +81,11 @@ class dcRowBlocks:
       self.blocksInLine = []
       """A list of dcBlocks in the line"""
       self.posOfAllBlocks = set ()
-      """The null based index of all black fields in the line with length noFields"""
+      """The null based index of all black fields that are currently set within the line."""
       self.numberPermutations: int
       """The overall number of permutations to distribute all blocks in the line"""
+      self.reqNoCrossPerLine: int
+      """Defines the required number of crosses which must be set in the line to complete it"""
 
       iPos = 0  # position index of  block in a row
       for block in blockList:
@@ -93,29 +95,30 @@ class dcRowBlocks:
          self.posOfAllBlocks.update(tmp.posSet)
          iPos += block.length + 1
 
+      # The required number of crosses in this line is the length of the line minus the number of required blocks
+      self.reqNoCrossPerLine = noFields - len (self.posOfAllBlocks)
+
       # The last block must get a new max right position and the attribut hasSucc to False 
       self.blocksInLine [-1].maxRightPos = self.noFields - block.length
       self.blocksInLine [-1].hasSucc = False
 
       # Now we set for each block all the allowed positions considering the positions which are not allowed (lockedPos) .
-      self.SetAllowedPositions (lockedPos)
+      self.SetAllowedPosWithinLine (lockedPos)
       self.numberPermutations = self.CalcPermutationsOfRow ()
       
    def CalcPermutations (self, q, k):
+      if q <= 1: return 1
       fc = 1
       for i in range (q, q+k): fc *= i
       return int (fc/math.factorial (k))
 
    def CalcPermutationsOfRow (self):
          k = len (self.blocksInLine)
-         q = self.noFields - k + 2  
-         for block in self.blocksInLine: # get the length of each block
-            q += -block.length
-
+         q = self.noFields - k + 2 - len (self.posOfAllBlocks) 
          return self.CalcPermutations (q, k)
 
 
-   def SetAllowedPositions (self, lockedPos):
+   def SetAllowedPosWithinLine (self, lockedPos):
       """Sets for each block all the allowed positions. These are all positions (regarding to the first element) the block can
       be placed within its line, from the most left position to the most right position. 
       """
@@ -123,7 +126,7 @@ class dcRowBlocks:
       posMin = 0
       posMax = self.noFields - sum (block.length + 1 for block in self.blocksInLine) + 1
       for block in self.blocksInLine:
-         block.SetAllAllowedPositions (posMin=posMin, posMax=posMax)
+         block.SetAllowedPositionsOfBlock (posMin=posMin, posMax=posMax)
          block.RemoveAllowedPositions (lockedPos)
          posMin += block.length + 1
          posMax += block.length + 1
@@ -132,6 +135,13 @@ class dcRowBlocks:
    def UpdateAllowedPositions (self, lockedPos):
       for block in self.blocksInLine:
          block.RemoveAllowedPositions (lockedPos)
+
+   def EstimateReducedPermutations (self, crossedPos: set, filledPos: set):
+      # TODO: here we need an effective algorithm to estimate the numer of permutation
+      # with respect to already fix placed crosses and fix placed blocks.
+      k = len (self.blocksInLine)
+      q = self.noFields - k + 2 - len (self.posOfAllBlocks) - len (crossedPos)
+      return self.CalcPermutations (q, k)
 
 
    def NextStep (self):
@@ -178,7 +188,7 @@ if __name__ == "__main__":
    from Nonogram_Game import NonogramGame as noG
    
    bl = dcBlock (0, 10, 3, 5, True)
-   bl.SetAllAllowedPositions (posMin=2, posMax=6)
+   bl.SetAllowedPositionsOfBlock (posMin=2, posMax=6)
 
    ap = bl.allowedPos
 

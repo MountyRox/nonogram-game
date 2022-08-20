@@ -741,13 +741,33 @@ class NonogramGame:
 
    def AutofillRowWithPresets (self): 
       autoFillData = self.nonoAssist.FillFieldsWithPresets(self.processedFields)
-      self.CopyAutoFillDataToNonogram (autoFillData)
+      self.CopyAutoFillDataToNonogram (autoFillData[0])
 
    def AutofillColWithPresets (self):
       autoFillData = self.nonoAssist.FillFieldsWithPresets (self.processedFields, False)
-      self.CopyAutoFillDataToNonogram (autoFillData)
+      self.CopyAutoFillDataToNonogram (autoFillData[0])
 
+   #00FFFF
    def AutoSolve (self):
+      isSolved = False
+      solver = self.nonoAssist.NonogramSolver ()
+      partlySolved = False
+      for isSolved, autoFillData in solver:
+         if autoFillData: 
+            partlySolved = True 
+            self.CopyAutoFillDataToNonogram (autoFillData)
+            self.screen.blit(self.screenBkg, (0, 0))
+            self.DrawNonogram ()
+            pg.display.flip()
+         else: print ('No Data')
+
+      if not isSolved:  # not solved at all, maybe not unique
+         if partlySolved: # seems to be only party solved
+            QtDialogs.MessageBox (*self.localMsgText ['PartlySolutionOnly'])
+         else: # not solved at all, maybe not unique
+            QtDialogs.MessageBox (*self.localMsgText ['NoSolutionFound'])
+
+   def Old_AutoSolve (self):
       isSolved, autoFillData = self.nonoAssist.NonogramSolver ()
       if autoFillData:  
          if not isSolved: # seems to be only party solved
