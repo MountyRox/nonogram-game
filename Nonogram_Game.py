@@ -3,6 +3,7 @@ import operator
 import sys
 import os
 import pathlib
+from typing import Any
 import pygame as pg
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import *
@@ -106,6 +107,8 @@ class NonogramGame:
       self.buttonRtoW:          pgButton.clButton
       self.buttonUndo:          pgButton.clButton
       self.buttonRedo:          pgButton.clButton
+
+      self.imgBusy: pg.Surface #00FFFF
 
       self.noRows: int      #: number of rows of the nonogram
       self.noCols: int      #: number of columns of the nonogram
@@ -417,6 +420,9 @@ class NonogramGame:
       self.groupButtons.add (self.buttonRtoW)
       self.groupButtons.add (self.buttonUndo)
       self.groupButtons.add (self.buttonRedo)
+
+   def LoadBusy (self):
+      self.imgBusy = pg.image.load (r'Images\busy.png')
 
    def SaveNonogramToFile (self, filename):
       with open(filename, "w", newline='') as f:
@@ -757,6 +763,7 @@ class NonogramGame:
             partlySolved = True 
             self.CopyAutoFillDataToNonogram (autoFillData)
             self.screen.blit(self.screenBkg, (0, 0))
+            self.screen.blit(self.imgBusy, (50, 0))
             self.DrawNonogram ()
             pg.display.flip()
          else: print ('No Data')
@@ -984,6 +991,7 @@ class NonogramGame:
 
       self.InitPygameParameter ()
       self.CreateButtons ()
+      self.LoadBusy ()
       self.SetGameTitle ('Nonogram Game')   
 
       while True:
