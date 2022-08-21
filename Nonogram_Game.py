@@ -1,8 +1,11 @@
+from ast import Break
 import itertools
 import operator
+from re import T
 import sys
 import os
 import pathlib
+from tkinter import N
 from typing import Any
 import pygame as pg
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -241,7 +244,6 @@ class NonogramGame:
       except:
          return False, None, None, None
          
-
    #ff0000
 
    # Gets the max text length of the rendered block length numbers
@@ -292,6 +294,11 @@ class NonogramGame:
       """  
       self.screenWidth = 400
       self.screenHeight = 200
+
+      # Position pygame window on screen
+      x = 500
+      y = 200
+      os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (x,y)
 
       self.processedFields = {}
 
@@ -366,8 +373,7 @@ class NonogramGame:
       # The following print will only be excecuted if nAss.DEBUGMODE is true
       self.nonoAssist.PrintPermutationsOfRowsAndCols()
 
-      #ff00ff
-
+   #ff00ff
    def CreateButtons (self):
 
       def LoadImage (FileName):
@@ -464,7 +470,6 @@ class NonogramGame:
       for pos, blockAttr in self.processedFields.items():
          if blockAttr ['pos'][0] <= 0:
             blockAttr ['pos'] = self.GetNonogramFieldFromRowCol (*pos)
-
 
    def DrawNonogramBackground (self):
       self.screenBkg.fill(self.WHITE)
@@ -636,7 +641,6 @@ class NonogramGame:
 
       return retCode
 
-
    def HandleMouseEvent (self, event):
       # some menu actions need a restart of the app. For example, if a new game was loaded
       returnCode = self.enExitCode.NONE
@@ -754,19 +758,31 @@ class NonogramGame:
       self.CopyAutoFillDataToNonogram (autoFillData[0])
 
    #00FFFF
+   def HandleBusyEvent (self):
+      for event in pg.event.get():
+         if event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE: return self.enExitCode.CANCEL
+      return self.enExitCode.NONE
+   
    def AutoSolve (self):
       isSolved = False
       solver = self.nonoAssist.NonogramSolver ()
       partlySolved = False
+      self.screen.blit(self.screenBkg, (0, 0))
+      self.screen.blit(self.imgBusy, (50, 2))
+      txtSurface = pg.font.SysFont('consolas', 20).render('ESC: Stop', False, self.BLACK)
+      self.screen.blit(txtSurface, (20, 90))
+
       for isSolved, autoFillData in solver:
          if autoFillData: 
             partlySolved = True 
             self.CopyAutoFillDataToNonogram (autoFillData)
-            self.screen.blit(self.screenBkg, (0, 0))
-            self.screen.blit(self.imgBusy, (50, 0))
             self.DrawNonogram ()
             pg.display.flip()
-         else: print ('No Data')
+
+         if self.HandleBusyEvent () == self.enExitCode.CANCEL:
+            isSolved = True # we set to true to suppress message boxes after solve loop 
+            break
 
       if not isSolved:  # not solved at all, maybe not unique
          if partlySolved: # seems to be only party solved
@@ -962,7 +978,7 @@ class NonogramGame:
          self.isNewNonogram = True
 
       if filePath:
-         if os.path.exists (filePath):  #ff00ff
+         if os.path.exists (filePath): 
             success, rB, cB, pF =  self.ReadNonogramFromFile(filePath)
             if not success:
                QtDialogs.MessageBox (*self.localMsgText ['NoValidNonoFile'])
@@ -982,7 +998,6 @@ class NonogramGame:
                return True
       
       return False
-
 
    def Main (self):
       pg.init()
