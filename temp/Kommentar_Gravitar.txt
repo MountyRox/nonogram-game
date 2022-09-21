@@ -1,0 +1,18 @@
+Chapeau! Ein sehr kompliziertes Thema mit so wenig Zeilen Code zu realisieren ist wirklich bemerkenswert. 
+Ich bin immer wieder erstaunt, wie effizient man in Python programmieren kann.
+
+Obwohl ich in dem Thema Nonogramme recht tief drin stecke, muss ich mir das Video bestimmt noch das eine oder andere Mal ansehen. 
+Die Sichtweise "Zeile/Spalte" ist schon recht verwirrend, aber das ist halt bei einem Nonogramm nicht anders zu machen. 
+Meiner Meinung nach solltest du das Video nicht weiter kürzen. Deine Erklärungen zu den einzelnen Schritten sind sehr gut verständlich, aber auch notwendig. 
+Bei einer knapperen Darstellung würde aus meiner Sicht die Verständlichkeit leiden.
+
+Deine auf GitHub veröffentlichten Nonogramme habe ich auch mit meinem Algorithmus einmal durchrechnen lassen und war zunächst sehr frustriert, 
+da er beim letzten Nonogramm fast eine Minute zur Berechnug gebraucht hat, während es in deinem Video alles in Sekundenschnelle abläuft. 
+Dann aber habe ich das Nonogramm erkannt: "Der Kopfsprung" und bemerkt, dass dieses Nonogramm im Video nicht auftaucht. 
+Im Video ist der "Büffel" das letzte Nonogramm in der Liste. Als ich das Kopfsprung Nonogramm mit deinem Programm berechnen lassen wollte, 
+musste ich nach mehr als zehn Minuten abbrechen. Allerdings scheint mein Rechner deutlich langsamer als deiner zu sein. 
+Für den Kaktus braucht dein Programm bei mir ca. 3,7 sec, während es bei dir im Video nur 0,7 sec dauert. 
+Ich dachte gar nicht, dass mein Rechner so langsam ist, oder hast du eine Cray-EX zu Hause stehen?;-)) 
+Hast du das Kopfsprung Nonogramm mit deinem Algorithmus mal durchrechnen lassen? 
+
+Freue mich schon auf das nächste beautiful Python Video.  
